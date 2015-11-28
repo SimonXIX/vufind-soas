@@ -1,0 +1,81 @@
+<? $account = $this->auth()->getManager(); ?>
+<div id="soft_launch_feedback" class="pull-right well hidden-xs"><strong>Library systems change</strong><br />Please note that all library systems will be disrupted throughout April 2015 while we change the library management system to new software. <a href="http://www.soas.ac.uk/library/lib-sys-change/">Click here for details</a> or talk to a member of staff.<br />
+During this time you may be unable to use online fines payment. You will also be unable to reserve items.</div>
+<div class="navbar-header pull-right">
+  <button type="button" class="navbar-toggle" data-toggle="collapse" data-target="#header-collapse">
+    <span class="sr-only" tabindex="3">Toggle navigation</span>
+    <i class="fa fa-bars"></i>
+  </button>
+  <a id="logo" tabindex="7" href="<?=$this->url('home')?>"><img src="/SOAS-logo-75px-high.jpg" alt="SOAS, University of London"></a>
+  <!--<div id="soft_launch_feedback" class="pull-right well hidden-xs"><a tabindex="6" style="font-size:16pt" href="https://docs.google.com/forms/d/1e_Kr0Tavdm-OJNxdtOM5u2tdX8IrKAlrv-CnHoo_JMQ/viewform"><?=$this->transEsc("Feedback")?></a>  <i style="font-size:16pt" class="fa fa-thumbs-up"></i>
+  <br /><br /><?=$this->transEsc("Tell us what you think!")?></div>-->
+</div>
+<? if ($this->layout()->searchbox !== false): ?>
+  <section class="visible-lg">
+    <?=$this->layout()->searchbox ?>
+  </section>
+<? endif; ?>
+<? if (!isset($this->layout()->renderingError)): ?>
+  <div class="collapse navbar-collapse pull-left" id="header-collapse">
+    <ul role="navigation" class="nav navbar-nav navbar-right">
+      <? if ($this->feedback()->tabEnabled()): ?>
+        <li>
+          <a id="feedbackLink" class="modal-link" href="<?=$this->url('feedback-home') ?>"><i class="fa fa-envelope"></i> <?=$this->transEsc("Feedback")?></a>
+        </li>
+      <? endif; ?>
+      <? $cart = $this->cart(); if ($cart->isActive()): ?>
+        <li id="cartSummary">
+          <a id="cartItems" class="modal-link" title="<?=$this->transEsc('View Book Bag')?>" href="<?=$this->url('cart-home')?>"><i class="fa fa-suitcase"></i> <strong><?=count($cart->getItems())?></strong> <?=$this->transEsc('items')?><?=$cart->isFull() ? ' (' .  $this->transEsc('bookbag_full') . ')' : ''?></a>
+        </li>
+      <? endif; ?>
+      <? if (is_object($account) && $account->loginEnabled()): // hide login/logout if unavailable ?>
+        <li class="logoutOptions<? if(!$account->isLoggedIn()): ?> hidden<? endif ?>">
+          <a href="<?=$this->url('myresearch-home')?>" class="modal-link" tabindex="4" title="<?=$this->transEsc("Your Account")?>"><i class="fa fa-home"></i> <?=$this->transEsc("Your Account")?></a>
+        </li>
+        <li class="logoutOptions<? if(!$account->isLoggedIn()): ?> hidden<? endif ?>">
+          <a href="<?=$this->url('myresearch-logout')?>" class="modal-link" tabindex="4" title="<?=$this->transEsc("Log Out")?>"><i class="fa fa-sign-out"></i> <?=$this->transEsc("Log Out")?></a>
+        </li>
+        <li id="loginOptions"<? if($account->isLoggedIn()): ?> class="hidden"<? endif ?>>
+          <? if ($sessionInitiator = $account->getSessionInitiator($this->serverUrl($this->url('myresearch-home')))): ?>
+            <a href="<?=$this->escapeHtmlAttr($sessionInitiator)?>"><i class="fa fa-sign-in"></i> <?=$this->transEsc("Institutional Login")?></a>
+          <? else: ?>
+            <a href="<?=$this->url('myresearch-userlogin')?>" class="modal-link" tabindex="4" title="<?=$this->transEsc("Login")?>"><i class="fa fa-sign-in"></i> <?=$this->transEsc("Login")?></a>
+          <? endif; ?>
+        </li>
+      <? endif; ?>
+
+      <? if (isset($this->layout()->themeOptions) && count($this->layout()->themeOptions) > 1): ?>
+        <li class="dropdown">
+          <form method="post" name="themeForm" action="" id="themeForm">
+            <input type="hidden" name="ui"/>
+          </form>
+          <a href="#" class="dropdown-toggle" data-toggle="dropdown"><?=$this->transEsc("Theme")?> <b class="caret"></b></a>
+          <ul class="dropdown-menu">
+            <? foreach ($this->layout()->themeOptions as $current): ?>
+              <li<?=$current['selected'] ? ' class="active"' : ''?>><a href="#" onClick="document.themeForm.ui.value='<?=$this->escapeHtmlAttr($current['name'])?>';document.themeForm.submit()"><?=$this->transEsc($current['desc'])?></a></li>
+            <? endforeach; ?>
+          </ul>
+        </li>
+      <? endif; ?>
+
+      <? if (isset($this->layout()->allLangs) && count($this->layout()->allLangs) > 1): ?>
+        <li class="dropdown">
+          <form method="post" name="langForm" action="" id="langForm">
+            <input type="hidden" name="mylang"/>
+          </form>
+          <a href="#" class="dropdown-toggle" tabindex="5" data-toggle="dropdown"><?=$this->transEsc("Language")?> <b class="caret"></b></a>
+          <ul class="dropdown-menu">
+          <? foreach ($this->layout()->allLangs as $langCode => $langName): ?>
+            <li<?=$this->layout()->userLang == $langCode ? ' class="active"' : ''?>><a href="#" onClick="document.langForm.mylang.value='<?=$langCode?>';document.langForm.submit()"><?=$this->displayLanguageOption($langName)?></a></li>
+          <? endforeach; ?>
+          </ul>
+        </li>
+      <? endif; ?>
+      <li><a href="<?=$this->url('help-home')?>?topic=about" class="help-link" title="<?=$this->transEsc('About')?>"><?=$this->transEsc('About')?></a></li>
+    </ul>
+  </div>
+
+  <div class="pull-left header2 hidden-xs hidden-sm">
+	<i class="fa fa-at"></i> <a href="http://www.soas.ac.uk/library"><?=$this->transEsc("Library Website")?></a> | <i class="fa fa-search"></i> <a href="http://www.soas.ac.uk/library/using/finding/location/"><?=$this->transEsc("Locate Library Item")?></a> | <i class="fa fa-desktop"></i> <a href="http://mlplus.hosted.exlibrisgroup.com/primo_library/libweb/action/search.do?vid=44SOAS_V1"><?=$this->transEsc("Primo Central - cross-search databases and e-journals")?></a> | <i class="fa fa-share"></i> <a href="http://www.soas.ac.uk/library/using/finding/off-site-materials/"><?=$this->transEsc("Off-site Materials")?></a>
+  </div>
+<? endif; ?>

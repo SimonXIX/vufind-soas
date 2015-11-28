@@ -1,0 +1,415 @@
+<div class="<?=$this->driver->supportsAjaxStatus()?'ajaxItem ':''?>col-lg-11 col-md-11 col-sm-11 col-xs-11">
+  <input type="hidden" value="<?=$this->escapeHtmlAttr($this->driver->getUniqueID())?>" class="hiddenId" />
+  <input type="hidden" value="<?=$this->escapeHtmlAttr($this->driver->getResourceSource())?>" class="hiddenSource" />
+  <div class="text-center col-sm-2">
+    <a href="<?=$this->recordLink()->getUrl($this->driver)?>">
+      <? if ($summThumb = $this->record($this->driver)->getThumbnail()): ?>
+        <img class="recordcover hidden-xs" src="<?=$this->escapeHtmlAttr($summThumb)?>" alt="<?=$this->transEsc('Cover Image')?>"/>
+      <? else: ?>
+        <img class="recordcover hidden-xs" src="<?=$this->url('cover-unavailable')?>" alt="<?=$this->transEsc('No Cover Image')?>"/>
+      <? endif; ?>
+    </a>
+		<div class="text-center">
+		<?=str_replace('class="', 'class="label label-info ', $this->record($this->driver)->getFormatList())?>
+		</div>
+  <?=$this->record($this->driver)->getPreviews()?>
+  </div>
+  
+  <div class="col-lg-9 col-md-9 col-sm-10 col-xs-12">
+    <div>
+	<? $linkedtitle = $this->driver->getLinkedTitle(); if (!empty($linkedtitle)): ?>
+      <a href="<?=$this->recordLink()->getUrl($this->driver)?>" class="title">
+      <? foreach($linkedtitle as $field): ?>
+            <?=$this->escapeHtml($field)?><br/>
+        <? endforeach; ?></h3>
+	  <? endif; ?>
+      </a>
+    </div>
+  
+    <div>
+      <a href="<?=$this->recordLink()->getUrl($this->driver)?>" class="title">
+      <?
+        $summHighlightedTitle = $this->driver->getHighlightedTitle();
+        $summTitle = $this->driver->getTitle();
+        if (!empty($summHighlightedTitle)) {
+          echo ereg_replace (' /$','',($this->highlight($this->addEllipsis($summHighlightedTitle, $summTitle))));
+        } else if (!empty($summTitle)) {
+          echo ereg_replace (' /$','',($this->escapeHtml($this->truncate($summTitle, 180))));
+        } else {
+          echo $this->transEsc('Title not available');
+        }
+      ?>
+      </a>
+    </div>
+		
+    <div>
+      <? if($this->driver->isCollection()): ?>
+        <?=implode('<br>', $this->driver->getSummary()); ?>
+      <? else: ?>
+	  	<? $linkedauthor = $this->driver->getLinkedAuthor(); if (!empty($linkedauthor)): ?>
+		<?=$this->transEsc('by')?>
+			<? foreach($linkedauthor as $field): ?>
+            <a href="/Author/Home?author=<?=$this->escapeHtml($field)?>"><?=$this->escapeHtml($field)?></a><br />
+        <? endforeach; ?>
+	  <? endif; ?>
+        
+        <? $summAuthor = $this->driver->getPrimaryAuthor(); if (!empty($summAuthor)): ?>
+        <?=$this->transEsc('by')?>
+        <a href="<?=$this->record($this->driver)->getLink('author', $summAuthor)?>"><?
+          $summHighlightedAuthor = $this->driver->getHighlightedAuthor();
+          echo !empty($summHighlightedAuthor)
+              ? $this->highlight($summHighlightedAuthor)
+              : $this->escapeHtml($summAuthor);
+        ?></a>
+        <? endif; ?>
+
+        <? $journalTitle = $this->driver->getContainerTitle(); $summDate = $this->driver->getPublicationDates(); ?>
+        <? if (!empty($journalTitle)): ?>
+          <?=!empty($summAuthor) ? '<br />' : ''?>
+          <?=/* TODO: handle highlighting more elegantly here */ $this->transEsc('Published in') . ' <a href="' . $this->record($this->driver)->getLink('journaltitle', str_replace(array('{{{{START_HILITE}}}}', '{{{{END_HILITE}}}}'), '', $journalTitle)) . '">' . $this->highlight($journalTitle) . '</a>';?>
+          <?=!empty($summDate) ? ' (' . $this->escapeHtml($summDate[0]) . ')' : ''?>
+        <? elseif (!empty($summDate)): ?>
+          <?=!empty($summAuthor) ? '<br />' : ''?>
+          <?=$this->transEsc('Published') . ' ' . $this->escapeHtml($summDate[0])?>
+        <? endif; ?>
+        <? $summInCollection = $this->driver->getContainingCollections(); if (!empty($summInCollection)): ?>
+          <? foreach ($summInCollection as $collId => $collText): ?>
+            <div>
+              <b><?=$this->transEsc("in_collection_label")?></b>
+              <a class="collectionLinkText" href="<?=$this->url('collection', array('id' => $collId))?>?recordID=<?=urlencode($this->driver->getUniqueID())?>">
+                <?=$this->escapeHtml($collText)?>
+              </a>
+            </div>
+          <? endforeach; ?>
+        <? endif; ?>
+      <? endif; ?>
+    </div>
+
+    <? if(!$this->driver->isCollection()): ?>
+      <? if ($snippet = $this->driver->getHighlightedSnippet()): ?>
+        <? if (!empty($snippet['caption'])): ?>
+          <strong><?=$this->transEsc($snippet['caption']) ?>:</strong> ';
+        <? endif; ?>
+        <? if (!empty($snippet['snippet'])): ?>
+          <span class="quotestart">&#8220;</span>...<?=$this->highlight($snippet['snippet']) ?>...<span class="quoteend">&#8221;</span><br/>
+        <? endif; ?>
+      <? endif; ?>
+    <? endif; ?>
+
+    <?
+    /* Display information on duplicate records if available */
+    $dedupData = $this->driver->getDedupData();
+    if ($dedupData): ?>
+    <div class="dedupInformation">
+    <?
+      $i = 0;
+      foreach ($dedupData as $source => $current) {
+        if (++$i == 1) {
+          ?><span class="currentSource"><a href="<?=$this->recordLink()->getUrl($this->driver)?>"><?=$this->transEsc("source_$source", array(), $source)?></a></span><?
+        } else {
+          if ($i == 2) {
+            ?> <span class="otherSources">(<?=$this->transEsc('Other Sources')?>: <?
+          } else {
+            ?>, <?
+          }
+          ?><a href="<?=$this->recordLink()->getUrl($current['id'])?>"><?=$this->transEsc("source_$source", array(), $source)?></a><?
+        }
+      }
+      if ($i > 1) {
+        ?>)</span><?
+      }?>
+    </div>
+    <? endif; ?>
+	
+
+	<? // CUSTOM HTML ADDED FOR SOAS LIBRARY
+       // @author Simon Barron <sb174@soas.ac.uk>
+	   // Taken from ./templates/RecordTabs/holdingsils.phtml
+    ?>
+	
+	<?
+    // Set up convenience variables:
+    $account = $this->auth()->getManager();
+    $user = $account->isLoggedIn();
+    $holdings = $this->driver->getRealTimeHoldings();
+    $openUrl = $this->driver->openURLActive('holdings') ? $this->driver->getOpenURL() : false;
+    $offlineMode = $this->ils()->getOfflineMode();
+    // Account for replace_other_urls setting
+    $urls = ($openUrl && $this->driver->replaceURLsWithOpenURL()) ? array() : $this->record($this->driver)->getLinkDetails();
+	?>
+	
+	<? $journalholdings = $this->driver->getJournalHoldings(); if (!empty($journalholdings)): ?>
+	<table class="table table-responsive" summary="<?=$this->transEsc('Journal holdings details')?>">
+        <tr valign="top">
+		<? $shelflocation = $this->driver->getShelfLocation(); if (!empty($shelflocation)): ?>
+			<? foreach ($shelflocation as $location): ?>
+			<td><a href="http://www.soas.ac.uk/library/using/finding/location/"><?=$this->escapeHtml($location)?></a></td>
+			<? endforeach; ?>
+                <? endif; ?>
+            <? endif; ?>
+          <td><? foreach ($journalholdings as $field): ?><?= $this->escapeHtml($field)?><br/><? endforeach; ?></td>
+        </tr>
+	</table>
+	
+	<? foreach ($holdings as $holding): ?>
+		<table class="table table-responsive" summary="<?=$this->transEsc('Holdings details from')?> <?=$this->transEsc($holding['location'])?>">
+		<? if (!empty($holding['summary'])): ?>
+		<tr>
+    <th><?=$this->transEsc("Volume Holdings")?>: </th>
+    <td>
+      <? foreach ($holding['summary'] as $current): ?>
+        <?=$this->escapeHtml($current)?><br/>
+      <? endforeach; ?>
+    </td>
+  </tr>
+  <? endif; ?>
+  <? if (!empty($holding['notes'])): ?>
+  <tr>
+    <th><?=$this->transEsc("Notes")?>: </th>
+    <td>
+      <? foreach ($holding['notes'] as $data): ?>
+        <?=$this->escapeHtml($data)?><br/>
+      <? endforeach; ?>
+    </td>
+  </tr>
+  <? endif; ?>
+  <? foreach ($holding['items'] as $row): ?>
+    <? if (strpos($row['status'],'ONORDER') !== false):?>
+       <td><?=$this->transEsc("On order")?></td>
+    <? endif; ?>
+    <? $check = (isset($row['check']) && $row['check']); ?>
+    <? $checkStorageRetrievalRequest = (isset($row['checkStorageRetrievalRequest']) && $row['checkStorageRetrievalRequest']); ?>
+    <? if (isset($row['barcode']) && $row['barcode'] != ""): ?>
+      <tr vocab="http://schema.org/" typeof="Offer">
+        <!--<th class="hidden-xs"><?=$this->transEsc("Copy")?> <?=$this->escapeHtml($row['number'])?></th>-->
+        <td class="hidden-xs">
+        <? if ($row['holdings']): ?> <?=$this->escapeHtml($row['holdings'])?>
+        <? endif; ?>
+        </td>
+
+               <? if (stripos($holding['location'], 'Main') !== false): ?>
+                        <? $shelflocation = $this->driver->getShelfLocation(); if (!empty($shelflocation)): ?>
+                        <? foreach ($shelflocation as $location): ?>
+                        <td><a href="http://www.soas.ac.uk/library/using/finding/location/"><?=$this->escapeHtml($location)?></a></td>
+                        <? endforeach; ?>
+                        <? else: ?>
+                        <!--        <td>
+                                <a href="http://www.soas.ac.uk/library/using/finding/location/"><?=$this->transEsc($holding['location'])?></a>
+                                </td>-->
+                        <? endif; ?>
+                <? elseif (stripos($holding['location'], 'DAGEN') !== false): ?>
+                        <td>
+                        <a href="http://www.soas.ac.uk/library/using/finding/location/">Dagenham Store</a>
+                        </td>
+                <? elseif (stripos($holding['location'], 'EGHAM') !== false): ?>
+                        <td>
+                        <a href="http://www.soas.ac.uk/library/using/finding/location/">Egham Store</a>
+                        </td>
+                <? endif; ?>
+        <td>
+        <? if ($row['callnumber']): ?> <!--<strong class="hidden-xs"><?=$this->transEsc("Call Number")?>:</strong>--> <a href="/Alphabrowse/Home?source=callnumber&from=<?=$this->escapeHtml($row['callnumberDisplay'])?>"><?=$this->escapeHtml($row['callnumberDisplay'])?></a> <?=$this->escapeHtml($row['enumeration'])?>
+        <? endif; ?>
+        </td>
+
+        <td class="hidden-xs">
+                <script>
+                        $(document).ready(function(){
+                        $("#tooltip-ex a").tooltip({
+                        placement : 'top'
+                        });
+                        });
+                </script>
+        <? if ($row['type']): ?>
+                        <? if (stripos($row['type'], 'LONG LOAN') !== false): ?>
+                        <div id="tooltip-ex">
+                        <a href="#" data-toggle="tooltip" 
+                        data-original-title="<?=$this->transEsc("Anyone with SOAS Library membership can borrow this item type")?>"><?=$this->escapeHtml($row['type'])?></a>
+                        </div>
+                        <? elseif (stripos($row['type'], 'ONE WEEK LOAN') !== false): ?>
+                        <div id="tooltip-ex">
+                        <a href="#" data-toggle="tooltip" 
+                        data-original-title="<?=$this->transEsc("Only SOAS staff and students can borrow this item type")?>"><?=$this->escapeHtml($row['type'])?></a>
+                        </div>
+                        <? elseif (stripos($row['type'], 'THREE DAY LOAN') !== false): ?>
+                        <div id="tooltip-ex">
+                        <a href="#" data-toggle="tooltip" 
+                        data-original-title="<?=$this->transEsc("Only SOAS staff and students can borrow this item type")?>"><?=$this->escapeHtml($row['type'])?></a>
+                        </div>
+                        <? elseif (stripos($item['type'], 'SHORT') !== false): ?>
+                        <div id="tooltip-ex">
+                        <a href="#" data-toggle="tooltip" 
+                        data-original-title="<?=$this->transEsc("Only SOAS staff and students can borrow this item type")?>"><?=$this->escapeHtml($item['type'])?></a>
+                        </div>
+                        <? elseif (stripos($row['type'], 'REFERENCE ONLY') !== false): ?>
+                        <div id="tooltip-ex">
+                        <a href="#" data-toggle="tooltip" 
+                        data-original-title="<?=$this->transEsc("Only for use in the library")?>"><?=$this->escapeHtml($row['type'])?></a>
+                        </div>
+                        <? else: ?>
+                        <?=$this->escapeHtml($row['type'])?>
+                        <? endif; ?>
+        <? endif; ?>
+        </td>
+
+        <td>
+        <?=$this->escapeHtml($row['collection'])?>
+        </td>
+        <td>
+          <? if ($row['reserve'] == "Y"): ?>
+            <link property="availability" href="http://schema.org/InStoreOnly" />
+            <?=$this->transEsc("On Reserve - Ask at Circulation Desk")?><br />
+          <? endif; ?>
+          <? if (isset($row['use_unknown_message']) && $row['use_unknown_message']): ?>
+            <span class="muted"><?=$this->transEsc("status_unknown_message")?></span>
+          <? else: ?>
+            <? if ($row['availability']): ?>
+              <? /* Begin Available Items (Holds) */ ?>
+               <span class="text-success"><?=$this->transEsc($row['status'])?><link property="availability" href="http://schema.org/InStock" /></span>
+              <? if (isset($row['link']) && $row['link']): ?>
+                <a style="display:inline-block" class="<?=$check ? 'checkRequest ' : ''?>inlineblock modal-link placehold" href="<?=$this->recordLink()->getRequestUrl($row['link'])?>" title="<?=$this->transEsc($check ? "Check Hold" : "Place a Hold")?>"><i class="icon-flag"></i>&nbsp;<?=$this->transEsc($check ? "Check Hold" : "Place a Hold")?></a>
+              <? endif; ?>
+              <? if (isset($row['storageRetrievalRequestLink']) && $row['storageRetrievalRequestLink']): ?>
+                <a class="<?=$checkStorageRetrievalRequest ? 'checkStorageRetrievalRequest ' : ''?>modal-link placeStorageRetrievalRequest" href="<?=$this->recordLink()->getRequestUrl($row['storageRetrievalRequestLink'])?>" title="<?=$this->transEsc($checkStorageRetrievalRequest ? "storage_retrieval_request_check_text" : "storage_retrieval_request_place_text")?>"><i class="icon-flag"></i>&nbsp;<?=$this->transEsc($checkStorageRetrievalRequest ? "storage_retrieval_request_check_text" : "storage_retrieval_request_place_text")?></a>
+              <? endif; ?>
+            <? else: ?>
+              <? /* Begin Unavailable Items (Recalls) */ ?>
+              <span class="text-danger"><?=$this->transEsc($row['status'])?><link property="availability" href="http://schema.org/OutOfStock" /></span>
+              <? if (isset($row['returnDate']) && $row['returnDate']): ?>&ndash; <span class="small"><?=$this->escapeHtml($row['returnDate'])?></span><? endif; ?>
+              <? if (isset($row['duedate']) && $row['duedate']): ?>
+                &ndash; <span class="text-danger"><?=$this->transEsc("Due")?>: <?=$this->escapeHtml($row['duedate'])?></span>
+              <? endif; ?>
+              <? if (isset($row['requests_placed']) && $row['requests_placed'] > 0): ?>
+                <span><?=$this->transEsc("Requests")?>: <?=$this->escapeHtml($row['requests_placed'])?></span>
+              <? endif; ?>
+			  <? if (stripos($row['status'], 'On loan') !== false): ?>
+              <? if (isset($row['link']) && $row['link']): ?>
+                <a class="<?=$check ? 'checkRequest' : ''?> modal-link inlineblock placehold" href="<?=$this->recordLink()->getRequestUrl($row['link'])?>"><i class="fa fa-flag"></i>&nbsp;<?=$this->transEsc($check ? "Check Recall" : "Recall This")?></a>
+              <? endif; ?>
+			  <? endif; ?>
+            <? endif; ?>
+          <? endif; ?>
+          <? /* Embed item structured data: library, barcode, call number */ ?>
+          <? if ($row['location']): ?>
+            <meta property="seller" content="<?=$this->escapeHtml($row['location'])?>" />
+          <? endif; ?>
+          <? if ($row['barcode']): ?>
+            <meta property="serialNumber" content="<?=$this->escapeHtml($row['barcode'])?>" />
+          <? endif; ?>
+          <? if ($row['callnumber']): ?>
+            <meta property="sku" content="<?=$this->escapeHtml($row['callnumber'])?>" />
+          <? endif; ?>
+          <? /* Declare that the item is to be borrowed, not for sale */ ?>
+            <link property="businessFunction" href="http://purl.org/goodrelations/v1#LeaseOut" />
+            <link property="itemOffered" href="#record" />
+        </td>
+      </tr>
+    <? endif; ?>
+  <? endforeach; ?>
+
+  <? if (!empty($holding['purchase_history'])): ?>
+    <tr>
+      <th><?=$this->transEsc("Most Recent Received Issues")?>:</th>
+      <td>
+        <? foreach ($holding['purchase_history'] as $current): ?>
+          <?=$this->escapeHtml($current['issue'])?><br/>
+        <? endforeach; ?>
+      </td>
+    </tr>
+  <? endif; ?>
+</table>
+<? endforeach; ?>
+
+	<?// END OF CUSTOM HTML //?>
+	
+    <!--<div class="callnumAndLocation ajax-availability hidden">
+      <? if ($this->driver->supportsAjaxStatus()): ?>
+		<strong><?=$this->transEsc('Located')?>:</strong>
+        <span class="location ajax-availability hidden">
+          <?=$this->transEsc('Loading')?>...<br/>
+        </span>
+        <? $shelflocation = $this->driver->getShelfLocation(); if (!empty($shelflocation)): ?>
+			<? foreach ($shelflocation as $location): ?>
+			<a href="http://www.soas.ac.uk/library/using/finding/location/"><?=$this->escapeHtml($location)?></a>
+			<? endforeach; ?>
+		<? endif; ?>
+		<br />
+		<strong class="hideIfDetailed"><?=$this->transEsc('Call Number')?>:</strong>
+        <span class="callnumber ajax-availability hidden">
+          <?=$this->transEsc('Loading')?>...
+        </span>
+      <? else: ?>
+        <? $summCallNo = $this->driver->getCallNumber(); if (!empty($summCallNo)): ?>
+          <strong><?=$this->transEsc('Call Number')?>:</strong> <?=$this->escapeHtml($summCallNo)?>
+        <? endif; ?>
+      <? endif; ?>
+    </div>-->
+
+    <? /* We need to find out if we're supposed to display an OpenURL link ($openUrlActive),
+          but even if we don't plan to display the link, we still want to get the $openUrl
+          value for use in generating a COinS (Z3988) tag -- see bottom of file.
+        */
+      $openUrl = $this->driver->getOpenURL();
+      $openUrlActive = $this->driver->openURLActive('results');
+      $urls = $this->record($this->driver)->getLinkDetails();
+      if ($openUrlActive || !empty($urls)): ?>
+      <? if ($openUrlActive): ?>
+        <br/>
+        <?=$this->openUrl($openUrl)?>
+        <? if ($this->driver->replaceURLsWithOpenURL()) $urls = array(); // clear URL list if replace setting is active ?>
+      <? endif; ?>
+      <? if (!is_array($urls)) $urls = array();
+        if(!$this->driver->isCollection()):
+          foreach ($urls as $current): ?>
+            <a href="<?=$this->escapeHtmlAttr($this->proxyUrl($current['url']))?>" class="fulltext" target="new"><i class="fa fa-external-link"></i> <?=($current['url'] == $current['desc']) ? $this->transEsc('Get full text') : $this->escapeHtml($current['desc'])?></a><br/>
+        <? endforeach; ?>
+      <? endif; ?>
+    <? endif; ?>
+
+    <!--<? if (!$openUrlActive && empty($urls) && $this->driver->supportsAjaxStatus()): ?>
+      <span class="status ajax-availability hidden">
+        <span class="label label-default"><?=$this->transEsc('Loading')?>...</span>
+      </span>
+    <? endif; ?>-->
+  </div>
+  
+  <div class="col-xs-1 right hidden-xs hidden-sm">
+    <? /* Display qrcode if appropriate: */ ?>
+    <? if ($QRCode = $this->record($this->driver)->getQRCode("results")): ?>
+      <?
+        // Add JS Variables for QrCode
+        $this->jsTranslations()->addStrings(array('qrcode_hide' => 'qrcode_hide', 'qrcode_show' => 'qrcode_show'));
+      ?>
+      <span class="hidden-xs">
+        <i class="fa fa-qrcode"></i> <a href="<?=$this->escapeHtmlAttr($QRCode);?>" class="qrcodeLink"><?=$this->transEsc('qrcode_show')?></a>
+        <div class="qrcode hidden">
+          <img alt="<?=$this->transEsc('QR Code')?>" src="<?=$this->escapeHtmlAttr($QRCode);?>"/>
+        </div><br/>
+      </span>
+    <? endif; ?>
+
+    <? if ($this->userlist()->getMode() !== 'disabled'): ?>
+      <? /* Add to favorites */ ?>
+      <i class="fa fa-star"></i> <a href="<?=$this->recordLink()->getActionUrl($this->driver, 'Save')?>" class="save-record modal-link" id="<?=$this->driver->getUniqueId() ?>" title="<?=$this->transEsc('Add to favorites')?>"><?=$this->transEsc('Add to favorites')?></a><br/>
+
+      <? /* Saved lists */ ?>
+      <div class="savedLists alert alert-info hidden">
+        <strong><?=$this->transEsc("Saved in")?>:</strong>
+      </div>
+    <? endif; ?>
+
+    <? /* Hierarchy tree link */ ?>
+    <? $trees = $this->driver->tryMethod('getHierarchyTrees'); if (!empty($trees)): ?>
+      <? foreach ($trees as $hierarchyID => $hierarchyTitle): ?>
+        <div class="hierarchyTreeLink">
+          <input type="hidden" value="<?=$this->escapeHtmlAttr($hierarchyID)?>" class="hiddenHierarchyId" />
+          <i class="fa fa-sitemap"></i>
+          <a class="hierarchyTreeLinkText modal-link" href="<?=$this->recordLink()->getTabUrl($this->driver, 'HierarchyTree')?>?hierarchy=<?=urlencode($hierarchyID)?>#tabnav" title="<?=$this->transEsc('hierarchy_tree')?>">
+            <?=$this->transEsc('hierarchy_view_context')?><? if (count($trees) > 1): ?>: <?=$this->escapeHtml($hierarchyTitle)?><? endif; ?>
+          </a>
+        </div>
+      <? endforeach; ?>
+    <? endif; ?>
+  </div>
+
+  <?=$openUrl?'<span class="Z3988" title="'.$this->escapeHtmlAttr($openUrl).'"></span>':''?>
+</div>

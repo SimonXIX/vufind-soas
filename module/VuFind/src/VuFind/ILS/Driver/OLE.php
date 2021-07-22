@@ -204,7 +204,11 @@ class OLE extends AbstractBase implements \VuFindHttp\HttpServiceAwareInterface
                 );
             } else {
                 $this->db = new PDO(
-                    "mysql:host=" . $this->config['Catalog']['host'] . ";port=" . $this->config['Catalog']['port'] . ";dbname=" . $this->config['Catalog']['database'],
+		    // EDIT FOR july-2021 VERSION
+                    // @author Simon Bowie <sb174@soas.ac.uk>
+		    #"mysql:host=" . $this->config['Catalog']['host'] . ";port=" . $this->config['Catalog']['port'] . ";dbname=" . $this->config['Catalog']['database'],
+                    "mysql:host=" . $this->config['Catalog']['host'] . ";port=" . $this->config['Catalog']['port'] . ";dbname=" . $this->config['Catalog']['database'] . ";charset=utf8mb4",
+		    // END
                     $this->config['Catalog']['user'],
                     $this->config['Catalog']['password']
                 );
@@ -264,15 +268,19 @@ class OLE extends AbstractBase implements \VuFindHttp\HttpServiceAwareInterface
         try {
             $sqlStmt = $this->db->prepare($sql);
             $sqlStmt->bindParam(
-                ':login', strtolower(utf8_decode($login)), PDO::PARAM_STR
+		// EDIT FOR july-2021 VERSION
+		// @author Simon Bowie <sb174@soas.ac.uk>
+                #':login', strtolower(utf8_decode($login)), PDO::PARAM_STR
+		':login', strtolower($login), PDO::PARAM_STR
+		// END
             );
             $sqlStmt->bindParam(
                 ':barcode', strtolower(utf8_decode($barcode)), PDO::PARAM_STR
             );
-            //var_dump($sqlStmt);
             $sqlStmt->execute();
             $row = $sqlStmt->fetch(PDO::FETCH_ASSOC);
             if (isset($row['OLE_PTRN_ID']) && ($row['OLE_PTRN_ID'] != '')) {
+				$_SESSION['ptrn_barcode']= $barcode;
                 return array(
                     'id' => utf8_encode($row['OLE_PTRN_ID']),
                     'firstname' => utf8_encode($row['FIRST_NM']),
@@ -284,8 +292,9 @@ class OLE extends AbstractBase implements \VuFindHttp\HttpServiceAwareInterface
                     'college' => null,
                     // CUSTOM EDIT FOR SOAS LIBRARY
                     // @author Simon Barron <sb174@soas.ac.uk>
-                    'barcode' => strtoupper($barcode));
+                    'barcode' => strtoupper($barcode)
                     // END //
+		    );
             } else {
                 return null;
             }
@@ -342,10 +351,10 @@ class OLE extends AbstractBase implements \VuFindHttp\HttpServiceAwareInterface
         $patron['group'] = '';
         
         if (!empty($xml->patronName->firstName)) {
-            $patron['firstname'] = utf8_encode($xml->patronName->firstName);
+            $patron['firstname'] = $xml->patronName->firstName;
         }
         if (!empty($xml->patronName->lastName)) {
-            $patron['lastname'] = utf8_encode($xml->patronName->lastName);
+            $patron['lastname'] = $xml->patronName->lastName;
         }
         if (!empty($xml->patronEmail->emailAddress)) {
             $patron['email'] = utf8_encode($xml->patronEmail->emailAddress);
@@ -389,8 +398,12 @@ class OLE extends AbstractBase implements \VuFindHttp\HttpServiceAwareInterface
     {
 
         $transList = array();
-
-        $uri = $this->circService . '?service=getCheckedOutItems&patronBarcode=' . $patron['barcode'] . '&operatorId=' . $this->operatorId;
+        //SCB Change
+        $barcode=0;
+        if (isset($patron['barcode'])) $barcode = $patron['barcode']; 
+        //$uri = $this->circService . '?service=getCheckedOutItems&patronBarcode=' . $patron['barcode'] . '&operatorId=' . $this->operatorId;
+        //SCB Change
+        $uri = $this->circService . '?service=getCheckedOutItems&patronBarcode=' . $barcode . '&operatorId=' . $this->operatorId;
         $request = new Request();
         $request->setMethod(Request::METHOD_GET);
         $request->setUri($uri);
@@ -414,7 +427,7 @@ class OLE extends AbstractBase implements \VuFindHttp\HttpServiceAwareInterface
         $content_str = $response->getBody();
         $xml = simplexml_load_string($content_str);
         
-        $code = $xml->xpath('//code');
+       $code = $xml->xpath('//code');
         $code = (string)$code[0][0];
 
         if ($code == '000') {
@@ -425,7 +438,7 @@ class OLE extends AbstractBase implements \VuFindHttp\HttpServiceAwareInterface
                 $transList[] = $processRow;
             }
         }
-        //var_dump($transList);
+       // var_dump($transList);
         
         return $transList;
 
@@ -450,7 +463,13 @@ class OLE extends AbstractBase implements \VuFindHttp\HttpServiceAwareInterface
         $fineList = array();
         $transList = $this->getMyTransactions($patron);
 
-        $uri = $this->circService . '?service=fine&patronBarcode=' . $patron['barcode'] . '&operatorId=' . $this->operatorId;
+        //SCB Change
+        $barcode=0;
+        if (isset($patron['barcode'])) $barcode = $patron['barcode'];
+        //$uri = $this->circService . '?service=fine&patronBarcode=' . $patron['barcode'] . '&operatorId=' . $this->operatorId;
+        //SCB Change
+        $uri = $this->circService . '?service=fine&patronBarcode=' . $barcode . '&operatorId=' . $this->operatorId;
+
         $request = new Request();
         $request->setMethod(Request::METHOD_GET);
         $request->setUri($uri);
@@ -662,6 +681,12 @@ class OLE extends AbstractBase implements \VuFindHttp\HttpServiceAwareInterface
 
         $transactions['renewable'] = $renewData['renewable'];
         $transactions['message'] = $renewData['message'];
+        // CUSTOM CODE FOR SOAS LIBRARY
+        // @author Simon Barron <sb174@soas.ac.uk> 
+        if (isset($transactions['duedate']) && $transactions['duedate']){
+            $transactions['duedate'] = date("d-m-Y", strtotime($transactions['duedate']));
+        }
+        // END
         
         return $transactions;
         
@@ -723,12 +748,12 @@ class OLE extends AbstractBase implements \VuFindHttp\HttpServiceAwareInterface
                 /*Set convenience variables.*/
                 $status = $row['item_status_code'];
                 $available = (in_array($status, $this->item_available_codes) ? true:false);
-                $location = $row['locn_name'];
+                $location = $row['location'];
 
                 /*Build item array*/ 
                 $item['id'] = $id;
                 $item['status'] = $status;
-                $item['location'] = $row['locn_name'];
+                $item['location'] = $row['location'];
                 $item['reserve'] = 'N';
                 $item['callnumber'] = (string) $row[2] . ' ' . $row['holding_call_number'];
                 $item['availability'] = $available;
@@ -806,7 +831,7 @@ class OLE extends AbstractBase implements \VuFindHttp\HttpServiceAwareInterface
                     LEFT JOIN ole_dlvr_item_avail_stat_t istat on i.ITEM_STATUS_ID = istat.ITEM_AVAIL_STAT_ID
                     LEFT JOIN ole_cat_itm_typ_t itype on if(i.TEMP_ITEM_TYPE_ID is not null, i.TEMP_ITEM_TYPE_ID, i.ITEM_TYPE_ID) = itype.ITM_TYP_CD_ID
                     LEFT JOIN ole_locn_t loc on loc.LOCN_CD = SUBSTRING_INDEX(i.LOCATION, \'/\', -1)
-                    JOIN ole_cat_itm_typ_t type ON i.ITEM_TYPE_ID = type.ITM_TYP_CD_ID
+                    LEFT JOIN ole_cat_itm_typ_t type ON i.ITEM_TYPE_ID = type.ITM_TYP_CD_ID
                     WHERE i.STAFF_ONLY = \'N\'
                     AND i.HOLDINGS_ID = :holdingId';
 
@@ -831,32 +856,52 @@ class OLE extends AbstractBase implements \VuFindHttp\HttpServiceAwareInterface
                 $itemCallNum = (isset($row['CALL_NUMBER']) ? trim($row['CALL_NUMBER']) : null);
                 $holdtype = ($available == true) ? "hold":"recall";
                 $itemTypeArray = ($row['itype_name'] ? explode('-', $row['itype_name']) : array());
-                $itemTypeName = trim($itemTypeArray[1]);
-                $itemLocation = $row['locn_name'];
+                $itemTypeName = trim($itemTypeArray[0]);
+                $itemLocation = $row['location'];
                 $itemLocCodes = $row['location'];
-                              
-                /*Build the items*/ 
+				//Change By Htc
+				$item['ptrn_q_pos']=0;
+				$item['barcode'] = $row['barcode'];
+		 		if (isset($_SESSION['ptrn_barcode']) && $_SESSION['ptrn_barcode']){
+    			    $stmtQpos = $this->db->prepare("select ptrn_q_pos as ptrn_q_pos from ole_dlvr_rqst_t where itm_id='".$item['barcode']."' and ole_ptrn_barcd='".$_SESSION['ptrn_barcode']."'");
+					$stmtQpos->execute();
+					while($results = $stmtQpos->fetch()){
+						$item['ptrn_q_pos']=$results['ptrn_q_pos'];
+					} 
+				}
+				/*Build the items*/ 
                 $item['id'] = $id;
                 $item['availability'] = $available;
                 $item['status'] = $status;
-		// CUSTOM CODE FOR SOAS LIBRARY
-		//@author Simon Barron <sb174@soas.ac.uk>
+				// CUSTOM CODE FOR SOAS LIBRARY
+				//@author Simon Barron <sb174@soas.ac.uk>
                 $item['type'] = $row['item_type'];
-                if (stripos($item['status'], 'AVAILABLE') > -1) {
+                if ($item['status'] === 'AVAILABLE') {
                         $item['status'] = "Available";
-                }
-                elseif (stripos($item['status'], 'LIB-USE-ONLY') > -1) {
-                        $item['status'] = "Reference only";
-                        $item['availability'] = 1;
                 }
                 elseif (stripos($item['status'], 'LOSTANDPAID') > -1) {
                         $item['status'] = "Lost and paid";
                 }
-		elseif (stripos($item['status'], 'REPRTD-MISSING') > -1) {
-                        $item['status'] = "Missing";
-                }
                 elseif (stripos($item['status'], 'LOANED') > -1) {
                         $item['status'] = "On loan";
+                }
+                elseif (stripos($item['status'], 'RECENTLY-RETURNED') > -1) {
+                        $item['status'] = "Recently returned";
+                }
+                elseif (stripos($item['status'], 'LOST') > -1) {
+                        $item['status'] = "Lost";
+                }
+				elseif ($item['status'] === 'UNAVAILABLE') {
+                        $item['status'] = "Unavailable";
+                }
+				//Changed by HTC
+				elseif (stripos($item['status'], 'ONHOLD') > -1) {
+					//$item['status'] = "On holdshelf";
+					if(stripos($item['ptrn_q_pos'], '1') > -1){
+						$item['status'] = "On holdshelf";
+					}else{
+					$item['status'] = "On loan";
+					}
                 }
 		// END
                 $item['location'] = (!empty($itemLocation) ? $itemLocation : $holdingLocation);
@@ -864,13 +909,21 @@ class OLE extends AbstractBase implements \VuFindHttp\HttpServiceAwareInterface
                 $item['callnumber'] = (!empty($itemCallNum) ? $itemCallNum : $holdingCallNum);
                 $item['duedate'] = (isset($row['DUE_DATE_TIME']) ? $row['DUE_DATE_TIME'] : false) ;
 		// CUSTOM CODE FOR SOAS LIBRARY
-		$item['duedate'] = substr($item['duedate'], 0, -9);
+                if (isset($item['duedate']) && $item['duedate']){
+                        $item['duedate'] = substr($item['duedate'], 0, -9);
+                        $item['duedate'] = date("d-m-Y", strtotime($item['duedate']));
+                }
                 $item['enumeration'] = $enumeration;
 		// END
                 $item['returnDate'] = '';
                 $item['number'] = $copyNum . ' : ' . $enumeration;
                 $item['requests_placed'] = '';
-                $item['barcode'] = $row['barcode'];
+		//Changed by HTC
+                $stmtReq = $this->db->prepare("select count(*) as no_req from ole.ole_dlvr_rqst_t where itm_id='".$item['barcode']."'");
+	        	$stmtReq->execute();
+				while($result = $stmtReq->fetch()){
+					$item['req_count']=$result['no_req'];
+				}
                 $item['item_id'] = $row['item_id'];
                 $item['is_holdable'] = true;
                 $item['itemNotes'] = $row['note'];
@@ -949,7 +1002,7 @@ class OLE extends AbstractBase implements \VuFindHttp\HttpServiceAwareInterface
             /*Return array*/
             $summaryHoldings = array();
             while ($row = $stmt->fetch()) {
-                //print_r($row);
+
                 $summary = array();
                 if ($holdingId == $row['HOLDINGS_ID']) { 
                     //Convienence variables
@@ -1062,7 +1115,7 @@ class OLE extends AbstractBase implements \VuFindHttp\HttpServiceAwareInterface
             $stmt->execute(array(':holdingId' => $this->holdingPrefix . $holdingId));
 
             while ($row = $stmt->fetch()) {
-                //print_r($row);
+
                 $item = array();
 
                     $item['id'] = $id;
@@ -1079,7 +1132,7 @@ class OLE extends AbstractBase implements \VuFindHttp\HttpServiceAwareInterface
         catch (Exception $e){
             /*Do nothing*/
         }
-        //print_r($items);
+
         return $items;
 
     }
@@ -1100,7 +1153,8 @@ class OLE extends AbstractBase implements \VuFindHttp\HttpServiceAwareInterface
      * keys: id, availability (boolean), status, location, reserve, callnumber,
      * duedate, number, barcode.
      */
-    public function getHolding($id, $patron = false)
+    //public function getHolding($id, $patron = false)
+    public function getHolding($id, array $patron = null)
     {
         /*Get holdings by bib id, with holdings notes.*/
         $sql = 'SELECT h.HOLDINGS_ID AS holdings_id, h.BIB_ID AS bib_id, h.location AS
@@ -1139,7 +1193,7 @@ class OLE extends AbstractBase implements \VuFindHttp\HttpServiceAwareInterface
             while ($row = $stmt->fetch()) {
                 /*Array for item data*/
                 $item = array();
-                //print_r($row);
+
 
                 /*Convenience variables.*/
                 $shelvingLocation = $row['location'];
@@ -1204,12 +1258,14 @@ class OLE extends AbstractBase implements \VuFindHttp\HttpServiceAwareInterface
             /*Do nothing*/
         }
         
-        //print_r($items);
+
         return $items;
     }
 
     /**
      * Place Hold
+     *
+     * 2015-08-20 Temporary hack by tg3@soas.ac.uk to set pickup location to fixed value
      *
      * Attempts to place a hold or recall on a particular item and returns
      * an array with result details or throws an exception on failure of support
@@ -1237,12 +1293,15 @@ class OLE extends AbstractBase implements \VuFindHttp\HttpServiceAwareInterface
         $patron = $holdDetails['patron'];
         $patronId = $patron['id'];
         $service = 'placeRequest';
-        $requestType = ($holdDetails['holdtype'] == "recall") ? urlencode('Recall/Hold Request'):urlencode('Hold/Delivery Request');
+        $requestType = ($holdDetails['holdtype'] == "recall") ? urlencode('Recall/Hold Request'):urlencode('Hold/Hold Request');
         $bibId = $holdDetails['id'];
         $itemBarcode = $holdDetails['barcode'];
         $patronBarcode = $patron['barcode'];
-        
-        $uri = $this->circService . "?service={$service}&patronBarcode={$patronBarcode}&operatorId={$this->operatorId}&itemBarcode={$itemBarcode}&requestType={$requestType}";
+	$pickupLocation='SOAS_MAIN';
+	$requestNote=$holdDetails['comment'];
+	$requestNoteEdited=str_replace(' ','',$requestNote);
+        $uri = $this->circService . "?service={$service}&patronBarcode={$patronBarcode}&operatorId={$this->operatorId}&itemBarcode={$itemBarcode}&requestType={$requestType}&pickupLocation={$pickupLocation}&requestNote={$requestNoteEdited}";
+       
         //var_dump($uri);
         
         $request = new Request();
@@ -1404,7 +1463,6 @@ class OLE extends AbstractBase implements \VuFindHttp\HttpServiceAwareInterface
           $item_id = $details_arr[1];
 
             $uri = $this->circService . "?service={$service}&patronBarcode={$patronBarcode}&operatorId={$this->operatorId}&itemBarcode={$itemBarcode}";
-
             $request = new Request();
             $request->setMethod(Request::METHOD_POST);
             $request->setUri($uri);
@@ -1502,36 +1560,36 @@ class OLE extends AbstractBase implements \VuFindHttp\HttpServiceAwareInterface
      */
     public function cancelHolds($holdDetails)
 
-    {
-        $uri = $this->circService . '?service=holds&patronBarcode=' . $patron['barcode'] . '&operatorId=' . $this->operatorId;
-
+    {	
+	if(isset($_POST['cancelSelected'])){
+	     $selected = $_POST['cancelSelectedIDS'];
+	     $selected= $selected-1;
+	}
+    	$uri = $this->circService . '?service=holds&patronBarcode=' . $_SESSION['ptrn_barcode'] . '&operatorId=' . $this->operatorId;
         $request = new Request();
         $request->setMethod(Request::METHOD_GET);
         $request->setUri($uri);
-
-        $client = new Client();
+	$client = new Client();
         $client->setOptions(array('timeout' => 30));
-
-        try {
+	
+	try {
             $response = $client->dispatch($request);
         } catch (Exception $e) {
             throw new ILSException($e->getMessage());
         }
         // TODO: reimplement something like this when the API starts returning the proper http status code
-        /*
+        
         if (!$response->isSuccess()) {
             throw HttpErrorException::createFromResponse($response);
         }
-        */
+        
         $content = $response->getBody();
-
-        $xml = simplexml_load_string($content);
-
-        $requestId = $xml->requestId;
-
-        $service = 'placeRequest';
-       
-        $uri = $this->circService . "?service={$service}&operatorId={$this->operatorId}&requestId={$requestId}";
+		$xml = simplexml_load_string($content);
+		$requestId = $xml->xpath('//requestId');
+		$code = (string)$requestId[$selected];
+            
+        $service = 'cancelRequest';
+        $uri = $this->circService . "?service={$service}&operatorId={$this->operatorId}&requestId={$code}";
         //var_dump($uri);
 
         $request = new Request();
@@ -1548,14 +1606,14 @@ class OLE extends AbstractBase implements \VuFindHttp\HttpServiceAwareInterface
         }
         
         // TODO: reimplement something like this when the API starts returning the proper http status code
-        /*
+        
         if (!$response->isSuccess()) {
             throw HttpErrorException::createFromResponse($response);
         }
-        */
+        
 
         /* TODO: this will always be 201 */
-        //$statusCode = $response->getStatusCode();
+        $statusCode = $response->getStatusCode();
         $content = $response->getBody();
 
         $xml = simplexml_load_string($content);
@@ -1566,4 +1624,30 @@ class OLE extends AbstractBase implements \VuFindHttp\HttpServiceAwareInterface
 
         return $this->returnString($success, (string)$msg[0]);
     }
+
+	//changes by htc
+    public function getConnection(){
+    try {
+           $this->db = new PDO(
+                "mysql:host=" . $this->config['Catalog']['host'] . ";port=" . $this->config['Catalog']['port'] . ";dbname=" . $this->config['Catalog']['database'],
+                 $this->config['Catalog']['user'],
+                 $this->config['Catalog']['password']
+           );
+        }catch (PDOException $e) {
+	            throw $e;
+        }
+	return $this->db;
+   }
+ 
+   public function getCirculation(){
+   	return $this->circService;
+   }
+	
+   public function getIds(){
+   	return $this->config['Catalog']['fineAccessRestrictionforfinePayments'];
+   }
+
+   public function getPaymentsEnabledDetails(){
+   	return $this->config['Catalog']['PaymentsEnabled'];
+   }
 }

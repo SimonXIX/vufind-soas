@@ -17,24 +17,24 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  *
- * @category VuFind2
+ * @category VuFind
  * @package  View_Helpers
  * @author   Demian Katz <demian.katz@villanova.edu>
  * @license  http://opensource.org/licenses/gpl-2.0.php GNU General Public License
- * @link     http://vufind.org/wiki/vufind2:developer_manual Wiki
+ * @link     https://vufind.org/wiki/development Wiki
  */
 namespace VuFindTheme\View\Helper;
 
 /**
  * View helper for loading theme-related resources in the header.
  *
- * @category VuFind2
+ * @category VuFind
  * @package  View_Helpers
  * @author   Demian Katz <demian.katz@villanova.edu>
  * @license  http://opensource.org/licenses/gpl-2.0.php GNU General Public License
- * @link     http://vufind.org/wiki/vufind2:developer_manual Wiki
+ * @link     https://vufind.org/wiki/development Wiki
  */
 class HeadThemeResources extends \Zend\View\Helper\AbstractHelper
 {
@@ -62,6 +62,40 @@ class HeadThemeResources extends \Zend\View\Helper\AbstractHelper
      */
     public function __invoke()
     {
+        // Add various types of content to the header:
+        $this->addMetaTags();
+        $this->addLinks();
+        $this->addScripts();
+    }
+
+    /**
+     * Given a colon-delimited configuration string, break it apart, making sure
+     * that URLs in the first position are not inappropriately split.
+     *
+     * @param string $current Setting to parse
+     *
+     * @return array
+     */
+    protected function parseSetting($current)
+    {
+        $parts = explode(':', $current);
+        // Special case: don't explode URLs:
+        if (($parts[0] === 'http' || $parts[0] === 'https')
+            && '//' === substr($parts[1], 0, 2)
+        ) {
+            $protocol = array_shift($parts);
+            $parts[0] = $protocol . ':' . $parts[0];
+        }
+        return $parts;
+    }
+
+    /**
+     * Add meta tags to header.
+     *
+     * @return void
+     */
+    protected function addMetaTags()
+    {
         // Set up encoding:
         $headMeta = $this->getView()->plugin('headmeta');
         $headMeta()->prependHttpEquiv(
@@ -73,14 +107,22 @@ class HeadThemeResources extends \Zend\View\Helper\AbstractHelper
         if (!empty($generator)) {
             $headMeta()->appendName('Generator', $generator);
         }
+    }
 
+    /**
+     * Add links to header.
+     *
+     * @return void
+     */
+    protected function addLinks()
+    {
         // Convenient shortcut to view helper:
         $headLink = $this->getView()->plugin('headlink');
 
         // Load CSS (make sure we prepend them in the appropriate order; theme
         // resources should load before extras added by individual templates):
         foreach (array_reverse($this->container->getCss()) as $current) {
-            $parts = explode(':', $current);
+            $parts = $this->parseSetting($current);
             $headLink()->prependStylesheet(
                 trim($parts[0]),
                 isset($parts[1]) ? trim($parts[1]) : 'all',
@@ -91,18 +133,11 @@ class HeadThemeResources extends \Zend\View\Helper\AbstractHelper
         // Compile and load LESS (make sure we prepend them in the appropriate order
         // theme resources should load before extras added by individual templates):
         foreach (array_reverse($this->container->getLessCss()) as $current) {
-            $headLink()->addLessStylesheet($current);
-        }
-
-        // Load Javascript (same ordering considerations as CSS, above):
-        $headScript = $this->getView()->plugin('headscript');
-        foreach (array_reverse($this->container->getJs()) as $current) {
-            $parts =  explode(':', $current);
-            $headScript()->prependFile(
-                trim($parts[0]),
-                'text/javascript',
-                isset($parts[1])
-                ? array('conditional' => trim($parts[1])) : array()
+            $parts = $this->parseSetting($current);
+            $headLink()->prependStylesheet(
+                $headLink()->addLessStylesheet(trim($parts[0])),
+                isset($parts[1]) ? trim($parts[1]) : 'all',
+                isset($parts[2]) ? trim($parts[2]) : false
             );
         }
 
@@ -110,10 +145,30 @@ class HeadThemeResources extends \Zend\View\Helper\AbstractHelper
         $favicon = $this->container->getFavicon();
         if (!empty($favicon)) {
             $imageLink = $this->getView()->plugin('imagelink');
-            $headLink(array(
+            $headLink([
                 'href' => $imageLink($favicon),
                 'type' => 'image/x-icon', 'rel' => 'shortcut icon'
-            ));
+            ]);
+        }
+    }
+
+    /**
+     * Add scripts to header.
+     *
+     * @return void
+     */
+    protected function addScripts()
+    {
+        // Load Javascript (same ordering considerations as CSS, above):
+        $headScript = $this->getView()->plugin('headscript');
+        foreach (array_reverse($this->container->getJs()) as $current) {
+            $parts =  $this->parseSetting($current);
+            $headScript()->prependFile(
+                trim($parts[0]),
+                'text/javascript',
+                isset($parts[1])
+                ? ['conditional' => trim($parts[1])] : []
+            );
         }
     }
 }

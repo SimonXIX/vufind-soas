@@ -1,0 +1,176 @@
+<? $this->headScript()->appendFile('collection_record.js'); ?>
+<div class="row">
+
+  <div class="col-sm-12">
+    <h2><?=html_entity_decode($this->escapeHtml($this->driver->getShortTitle(), ENT_QUOTES | ENT_HTML5) . ' ' . html_entity_decode($this->driver->getSubtitle(), ENT_QUOTES | ENT_HTML5) . ' ' . html_entity_decode($this->driver->getTitleSection()), ENT_QUOTES | ENT_HTML5)?></h2>
+
+      <? $summary = $this->driver->getSummary(); $summary = isset($summary[0]) ? html_entity_decode($summary[0], ENT_QUOTES | ENT_HTML5) : false; ?>
+    <? if ($summary): ?>
+      <p><?=$this->truncate($summary, 300)?></p>
+
+      <? if(strlen($summary) > 300): ?>
+        <p><a href='<?=$this->recordLink()->getTabUrl($this->driver, 'CollectionDescription')?>#tabnav'><?=$this->transEsc('Full description')?></a></p>
+      <? endif; ?>
+	  <? $linkedsummary = $this->driver->getLinkedDescription(); if (!empty($linkedsummary)): ?>
+        <? foreach ($linkedsummary as $field): ?><?= html_entity_decode($this->escapeHtml($field), ENT_QUOTES | ENT_HTML5)?><br/>
+		<? endforeach; ?>
+      <? endif; ?>
+    <? endif; ?>
+
+    <? /* Display the lists that this record is saved to */ ?>
+    <div class="savedLists hidden alert alert-info" id="savedLists">
+      <strong><?=$this->transEsc("Saved in")?>:</strong>
+    </div>
+
+    <a id="moreInfoToggle" href="#" style="display:none;"><?=$this->transEsc('more_info_toggle')?></a>
+    </br>
+	
+	<?
+		$classmark = $this->driver->getClassmark();
+		$availability = $this->driver->getAvailability();
+		$availability_status = $this->driver->getAvailabilityStatus();
+	?>
+		
+	<script>
+			$(document).ready(function(){
+			$("#tooltip-ex a").tooltip({
+			placement : 'top'
+			});
+			});
+	</script>
+	<div class="holdings">
+	<table class="table table-responsive" summary="<?=$this->transEsc('manuscript access')?>">
+	<tr class="hidden_holdings2">
+	
+	<td id="boxArchive" class="col-sm-3"><div id="tooltip-ex"><a target="_blank" href="/Locationlist?ll=Archives xxxxx Special Collections&cm=<?=$classmark?>" data-toggle="tooltip" data-original-title="<?=$this->transEsc("Archive & Special Collections")?>"><?=$this->transEsc("Archive & Special Collections")?></a></div></td>
+	
+	<? if (!empty($classmark)): ?>
+		<td id="boxClassmark" class="col-sm-3"><?=$classmark?></td>
+	<? endif; ?>
+	
+	<td id="boxLoanType" class="col-sm-3"><div id="tooltip-ex"><a href="https://www.soas.ac.uk/library/archives/services/requesting-material/" data-toggle="tooltip" data-original-title="<?=$this->escapeHtml($availability[0])?>"><?=$this->transEsc("Reference only")?></a></div></td>
+	
+	<? if (!empty($availability_status)): ?>
+		<? foreach ($availability_status as $field): ?>
+			<?if($this->escapeHtml($field) == "restricted"):?>
+				<td id="boxAccess" class="text-danger col-sm-3"><?=$this->escapeHtml(ucfirst($field))?></td>
+			<?else:?>
+				<td id="boxAccess" class="text-success col-sm-3"><?=$this->transEsc("Available")?></td>
+			<?endif;?>
+		<? endforeach; ?>
+    <? endif; ?>
+	
+	</tr>
+	</table>
+	
+	<? if (!empty($availability_status)): ?>
+		<? foreach ($availability_status as $field): ?>
+			<?if($this->escapeHtml($field) == "restricted"):?>
+				<? if (!empty($availability)): ?>
+					<table><tr><td id="manuscript_note"><?=$this->escapeHtml($availability[0])?><td></tr></table>
+				<?endif;?>
+			<?endif;?>
+		<? endforeach; ?>
+    <? endif; ?>
+	
+	</div>
+	
+    <?/* Display Main Details */?>
+    <table id="collectionInfo" class="table table-striped" summary="<?=$this->transEsc('Bibliographic Details')?>">
+
+<? $order = $this->driver->getOrderWith(); if (!empty($order) && count($order)>0 && !empty($order[0])): ?>
+      <tr>
+        <th><?=$this->transEsc('Order Number')?>:</th>
+        <td>
+            <? foreach ($order as $orderAux): ?><?= html_entity_decode($this->escapeHtml($orderAux), ENT_QUOTES | ENT_HTML5)?><br/><? endforeach; ?>
+        </td>
+      </tr>
+      <? endif; ?>
+      
+  <? $order = $this->driver->getOrderWith(); if (!empty($order) && count($order)>0 && !empty($order[0])): ?>
+   
+      <? $authors = $this->driver->getDeduplicatedAuthors(); ?>
+      <? if (isset($authors['main']) && !empty($authors['main'])): ?>
+      <tr>
+        <th class="labelTbl"><?=$this->transEsc('Main Author')?>: </th>
+        <td property="author">
+		<?foreach($authors['main'] as $authorAux=>$aux):?>
+		<a href="<?=$this->record($this->driver)->getLink('author', $authorAux)?>"><?=$this->escapeHtml($authorAux)?></a>
+		<?endforeach;?>
+		<br />
+		<? $linkedauthor = $this->driver->getLinkedAuthor(); if (!empty($linkedauthor)): ?>
+			<? foreach($linkedauthor as $field): ?>
+            <a href="<?=$this->record($this->driver)->getLink('author', $field)?>"><?=$this->escapeHtml($field)?></a>
+			<br />
+			<? endforeach; ?>
+		<? endif; ?>
+		
+		</td>
+      </tr>
+      <? endif; ?>
+
+      <? if (isset($authors['corporate']) && !empty($authors['corporate'])): ?>
+      <tr>
+        <th class="labelTbl"><?=$this->transEsc('Corporate Author')?>: </th>
+        <td property="creator">
+		<a href="<?=$this->record($this->driver)->getLink('author', $authors['corporate'])?>"><?=$this->escapeHtml($authors['corporate'])?></a>
+		<br />		
+		<? $linkedcorporate = $this->driver->getLinkedCorporate(); if (!empty($linkedcorporate)): ?>
+            <? foreach ($linkedcorporate as $linkcorp): ?><a href="<?=$this->record($this->driver)->getLink('author', $linkcorp)?>"><?= $this->escapeHtml($linkcorp)?>
+            <br/>
+            <? endforeach; ?>
+        <? endif; ?>
+			
+		</td>
+      </tr>
+      <? endif; ?>
+
+      <? if (isset($authors['secondary']) && !empty($authors['secondary'])): ?>
+      <tr>
+        <th class="labelTbl"><?=$this->transEsc('Other Authors')?>: </th>
+        <td>  
+          <? $i = 0; foreach ($authors['secondary'] as $authorAux=>$aux): ?><?=($i++ == 0)?'':'; '?>
+          <span property="contributor"><a href="<?=$this->record($this->driver)->getLink('author', $authorAux)?>"><?=$this->escapeHtml($authorAux)?></a></span>
+          <? endforeach; ?>
+		<br />
+		  <? $linkedauthor2 = $this->driver->getLinkedAuthor2(); if (!empty($linkedauthor2)): ?>
+            <? foreach ($linkedauthor2 as $linkauthor): ?><a href="<?=$this->record($this->driver)->getLink('author', $linkauthor)?>"><?= $this->escapeHtml($linkauthor)?></a>, 
+            <? endforeach; ?>
+			<br />
+          <? endif; ?>
+		</td>
+      </tr>
+      <? endif; ?>
+
+      <tr>
+        <th><?=$this->transEsc('Order')?>:</th>
+        <td>
+            <? foreach ($order as $orderAux): ?><?= $this->escapeHtml($orderAux)?><br/><? endforeach; ?>
+        </td>
+      </tr>
+      <? endif; ?>
+      
+      <? $dateCreation = $this->driver->getDateCreation(); if (!empty($dateCreation) && count($dateCreation)>0 && !empty($dateCreation[0])): ?>
+      <tr>
+        <th><?=$this->transEsc('dates_creation')?>:</th>
+        <td>
+            <? foreach ($dateCreation as $dateAux): ?><?= $this->escapeHtml($dateAux)?><br/><? endforeach; ?>
+        </td>
+      </tr>
+      <? endif; ?>
+    
+     <? $level = $this->driver->getLevel(); if (!empty($level) && count($level)>0  && !empty($level[0])): ?>
+      <tr>
+        <th><?=$this->transEsc('Level')?>:</th>
+        <td>
+            <? foreach ($level as $levelAux): ?><?= html_entity_decode($this->escapeHtml($levelAux), ENT_QUOTES | ENT_HTML5)?><br/><? endforeach; ?>
+        </td>
+      </tr>
+      <? endif; ?>
+      
+    </table>
+	
+    </br>
+    <?/* End Main Details */?>
+  </div>
+</div>

@@ -17,13 +17,13 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  *
- * @category VuFind2
+ * @category VuFind
  * @package  RecordDrivers
  * @author   Demian Katz <demian.katz@villanova.edu>
  * @license  http://opensource.org/licenses/gpl-2.0.php GNU General Public License
- * @link     http://vufind.org/wiki/vufind2:hierarchy_components Wiki
+ * @link     https://vufind.org/wiki/development:plugins:hierarchy_components Wiki
  */
 namespace VuFind\RecordDriver;
 use Zend\ServiceManager\ServiceManager;
@@ -31,11 +31,13 @@ use Zend\ServiceManager\ServiceManager;
 /**
  * Record Driver Factory Class
  *
- * @category VuFind2
+ * @category VuFind
  * @package  RecordDrivers
  * @author   Demian Katz <demian.katz@villanova.edu>
  * @license  http://opensource.org/licenses/gpl-2.0.php GNU General Public License
- * @link     http://vufind.org/wiki/vufind2:hierarchy_components Wiki
+ * @link     https://vufind.org/wiki/development:plugins:hierarchy_components Wiki
+ *
+ * @codeCoverageIgnore
  */
 class Factory
 {
@@ -50,8 +52,7 @@ class Factory
     {
         $eds = $sm->getServiceLocator()->get('VuFind\Config')->get('EDS');
         return new EDS(
-            $sm->getServiceLocator()->get('VuFind\Config')->get('config'),
-            $eds, $eds
+            $sm->getServiceLocator()->get('VuFind\Config')->get('config'), $eds, $eds
         );
     }
 
@@ -64,20 +65,10 @@ class Factory
      */
     public static function getEIT(ServiceManager $sm)
     {
+        $eit = $sm->getServiceLocator()->get('VuFind\Config')->get('EIT');
         return new EIT(
-            $sm->getServiceLocator()->get('VuFind\Config')->get('config'),
-            $sm->getServiceLocator()->get('VuFind\Config')->get('EIT')
+            $sm->getServiceLocator()->get('VuFind\Config')->get('config'), $eit, $eit
         );
-    }
-
-    /**
-     * Factory for LibGuides record driver.
-     *
-     * @return LibGuides
-     */
-    public static function getLibGuides()
-    {
-        return new LibGuides();
     }
 
     /**
@@ -103,10 +94,9 @@ class Factory
      */
     public static function getPazpar2(ServiceManager $sm)
     {
+        $pp2 = $sm->getServiceLocator()->get('VuFind\Config')->get('Pazpar2');
         return new Pazpar2(
-            $sm->getServiceLocator()->get('VuFind\Config')->get('config'),
-            null,
-            $sm->getServiceLocator()->get('VuFind\Config')->get('searches')
+            $sm->getServiceLocator()->get('VuFind\Config')->get('config'), $pp2, $pp2
         );
     }
 
@@ -152,11 +142,13 @@ class Factory
      */
     public static function getSolrDefault(ServiceManager $sm)
     {
-        return new SolrDefault(
+        $driver = new SolrDefault(
             $sm->getServiceLocator()->get('VuFind\Config')->get('config'),
             null,
             $sm->getServiceLocator()->get('VuFind\Config')->get('searches')
         );
+        $driver->attachSearchService($sm->getServiceLocator()->get('VuFind\Search'));
+        return $driver;
     }
 
     /**
@@ -178,6 +170,111 @@ class Factory
             $sm->getServiceLocator()->get('VuFind\ILSHoldLogic'),
             $sm->getServiceLocator()->get('VuFind\ILSTitleHoldLogic')
         );
+        $driver->attachSearchService($sm->getServiceLocator()->get('VuFind\Search'));
+        return $driver;
+    }
+
+    /** SCB **/
+    
+    /**
+     * Factory for SolrSobek record driver.
+     *
+     * @param ServiceManager $sm Service manager.
+     *
+     * @return SolrMarc
+     */
+    public static function getSolrSobek(ServiceManager $sm)
+    {
+        $driver = new SolrSobek(
+            $sm->getServiceLocator()->get('VuFind\Config')->get('config'),
+            null,
+            $sm->getServiceLocator()->get('VuFind\Config')->get('searches')
+        );
+        $driver->attachILS(
+            $sm->getServiceLocator()->get('VuFind\ILSConnection'),
+            $sm->getServiceLocator()->get('VuFind\ILSHoldLogic'),
+            $sm->getServiceLocator()->get('VuFind\ILSTitleHoldLogic')
+        );
+        return $driver;
+    }
+    
+            /**
+     * Factory for SolrDefault record driver.
+     *
+     * @param ServiceManager $sm Service manager.
+     *
+     * @return SolrDefault
+     */
+    public static function getSolrArchive(ServiceManager $sm)
+    {
+        return new SolrArchive(
+            $sm->getServiceLocator()->get('VuFind\Config')->get('config'),
+            null,
+            $sm->getServiceLocator()->get('VuFind\Config')->get('searches')
+        );
+    }
+
+    
+    /** SCB **/
+
+    /** edited by sb174 on 2018-07-09 **/
+    /**
+     * Factory for SolrDefault record driver.
+     *
+     * @param ServiceManager $sm Service manager.
+     *
+     * @return SolrDefault
+     */
+    public static function getSolrManuscript(ServiceManager $sm)
+    {
+        return new SolrManuscript(
+            $sm->getServiceLocator()->get('VuFind\Config')->get('config'),
+            null,
+            $sm->getServiceLocator()->get('VuFind\Config')->get('searches')
+        );
+    }
+
+    /** end 2018-07-09 **/
+	
+	/** added by sb174 on 2018-09-18 for sept-2018 release **/
+    /**
+     * Factory for SolrDefault record driver.
+     *
+     * @param ServiceManager $sm Service manager.
+     *
+     * @return SolrDefault
+     */
+    public static function getSolrDoab(ServiceManager $sm)
+    {
+        return new SolrDoab(
+            $sm->getServiceLocator()->get('VuFind\Config')->get('config'),
+            null,
+            $sm->getServiceLocator()->get('VuFind\Config')->get('searches')
+        );
+    }
+
+    /** end sept-2018 **/
+
+    /**
+     * Factory for SolrMarcRemote record driver.
+     *
+     * @param ServiceManager $sm Service manager.
+     *
+     * @return SolrMarc
+     */
+    public static function getSolrMarcRemote(ServiceManager $sm)
+    {
+        $driver = new SolrMarcRemote(
+            $sm->getServiceLocator()->get('VuFind\Config')->get('config'),
+            null,
+            $sm->getServiceLocator()->get('VuFind\Config')->get('searches')
+        );
+        $driver->attachILS(
+            $sm->getServiceLocator()->get('VuFind\ILSConnection'),
+            $sm->getServiceLocator()->get('VuFind\ILSHoldLogic'),
+            $sm->getServiceLocator()->get('VuFind\ILSTitleHoldLogic')
+        );
+        $driver->attachSearchService($sm->getServiceLocator()->get('VuFind\Search'));
         return $driver;
     }
 
@@ -206,11 +303,9 @@ class Factory
      */
     public static function getSolrWeb(ServiceManager $sm)
     {
+        $web = $sm->getServiceLocator()->get('VuFind\Config')->get('website');
         return new SolrWeb(
-            $sm->getServiceLocator()->get('VuFind\Config')->get('config'),
-            null,
-            $sm->getServiceLocator()->get('VuFind\Config')->get('website'),
-            $sm->getServiceLocator()->get('VuFind\Config')->get('website')
+            $sm->getServiceLocator()->get('VuFind\Config')->get('config'), $web, $web
         );
     }
 
@@ -243,9 +338,9 @@ class Factory
      */
     public static function getWorldCat(ServiceManager $sm)
     {
+        $wc = $sm->getServiceLocator()->get('VuFind\Config')->get('WorldCat');
         return new WorldCat(
-            $sm->getServiceLocator()->get('VuFind\Config')->get('config'),
-            $sm->getServiceLocator()->get('VuFind\Config')->get('WorldCat')
+            $sm->getServiceLocator()->get('VuFind\Config')->get('config'), $wc, $wc
         );
     }
 }

@@ -1,0 +1,116 @@
+<?
+  // Set up page titles:
+  $this->headTitle($this->translate('My Fines'));
+
+  // Set up breadcrumbs:
+  $this->layout()->breadcrumbs = '<li><a href="' . $this->url('myresearch-home') . '">' . $this->transEsc('Your Account') . '</a></li> <li class="active">' . $this->transEsc('Fines') . '</li>';
+
+  $statusOut1 = "Lost Item Processing Fee";
+  $statusOut2 = "Replacement Fee";
+  $totalDue = 0;
+  $totalDuePay = 0;
+  foreach ($this->fines as $record) {
+  	if($statusOut1 != $record['fine'] &&  $statusOut2 != $record['fine'])$totalDuePay += floatval($record['balance']);
+    $totalDue += floatval($record['balance']);
+  }
+
+  //$totalDue /= 100.00;
+  $paymentButton = '<button type="submit" class="btn btn-success fines-pay-total" id="fine_payment">Pay <span class="fines-total">Online</span></button>';
+?>
+<div class="<?=$this->layoutClass('mainbody')?>">
+  <form method="get" action="">
+    <?=$this->flashmessages()?>
+    <h2><?=$this->transEsc('Your Fines')?></h2>
+    <? if (empty($this->fines)): ?>
+      <?=$this->transEsc('You do not have any fines')?>
+    <? else: ?>
+      <? if($this->paymentsEnabled): ?>
+        <?if($totalDuePay>0):?>
+        <p class="pull-left help-block">
+          Select items to pay
+         
+        </p>
+        <?endif;?>
+      <? endif; ?>
+      <span class="clearfix"></span>
+
+      <? $i=0 ?>
+      <? foreach ($this->fines as $record): ?>
+
+       <?$out=false;?>
+      <?if($statusOut1 == $record['fine'] ||  $statusOut2 == $record['fine'])$out=true;?>
+
+       <? if ((double)$record['balance'] > 0): ?>
+          <table id="result<?=$i++ ?>" class="fines" style="width:100%">
+          <tr>
+          <td style="width:10%; text-align:center; vertical-align:middle">
+
+          <?if(!$out):?>
+          <? if ((double)$record['balance'] > 0): ?>
+          <input style="text-align:center; vertical-align:middle" type="checkbox" class="fine-checkbox" name="fines[]" data-amount="<?=$record['balance'] ?>" value="<?=$record['id'] ?>" checked="1"/>
+          <?endif;?>
+          <?else:?>
+          <? if ((double)$record['balance'] > 0): ?>
+          <span id="tooltip" data-toggle="tooltip" data-original-title="<?=$this->transEsc("Please contact Reader Services desk")?>" class="notAvailable"><?=$this->escapeHtml('not available')?></span>
+          <?endif;?>
+          <?endif;?>
+
+
+
+          </td>
+          <td style="width:90%">
+          <b><?=$this->transEsc('Title')?>:</b>
+            <? if (empty($record['title'])): ?>
+              <?=$this->transEsc('not_applicable')?><br/>
+            <? else: ?>
+              <?=$this->escapeHtml(trim($record['title'], '/:'))?><br/>
+            <? endif; ?>
+            <b><?=$this->transEsc('Checked Out')?>:</b>
+            <?=isset($record['checkoutDate']) ? $this->escapeHtml($record['checkoutDate']) : ''?><br/>
+            <b><?=$this->transEsc('Due Date')?>:</b>
+            <?=isset($record['dueDate']) ? $this->escapeHtml($record['dueDate']) : ''?><br/>
+            <b><?=$this->transEsc('Fine')?>:</b>
+            <?=isset($record['fine']) ? $this->escapeHtml($record['fine']) : ''?><br/>
+            <b><?=$this->transEsc('Balance')?>:</b>
+            <?=isset($record['balance']) ? $this->escapeHtml($record['balance']) : ''?><br/>
+          </td>
+          </tr>
+          </table>
+        <? endif; ?>
+
+
+
+      <? endforeach; ?>
+
+    <? endif; ?>
+  <?=$paymentButton ?>
+  </form>
+  <script>
+    var fineTotal = 0;
+    var fineCheckboxes = document.querySelectorAll('.fine-checkbox');
+    var fineCurrencySymbol = '<?=$this->safeMoneyFormat(1) ?>'.replace(/[\d\s.,:]/g, '');
+    var fineSymbolAtEnd = '<?=$this->safeMoneyFormat(1) ?>'.indexOf(fineCurrencySymbol) > 0;
+    for(var i=fineCheckboxes.length;i--;) {
+      if(fineCheckboxes[i].checked) {
+        fineTotal += parseFloat(fineCheckboxes[i].getAttribute("data-amount"));
+      }
+    }
+    $('.fines-total').html(fineSymbolAtEnd ? fineTotal.toFixed(2)+' '+fineCurrencySymbol : fineCurrencySymbol+fineTotal.toFixed(2));
+
+    $('.fine-checkbox').change(function() {
+      fineTotal += this.checked ? parseFloat(this.getAttribute("data-amount")) : -parseFloat(this.getAttribute("data-amount"));
+      $('.fines-total').html(fineSymbolAtEnd ? fineTotal.toFixed(2)+' '+fineCurrencySymbol : fineCurrencySymbol+fineTotal.toFixed(2));
+    });
+  </script>
+</div>
+
+<div class="<?=$this->layoutClass('sidebar')?> offcanvas-control">
+  <?=$this->context($this)->renderInContext("myresearch/menu.phtml", array('active' => 'fines'))?>
+</div>
+	<script>
+			$(document).ready(function(){
+			$("#tooltip").tooltip({
+			placement : 'top'
+			});
+			});
+	</script>	

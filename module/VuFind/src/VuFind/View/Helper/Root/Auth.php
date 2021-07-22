@@ -17,13 +17,13 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  *
- * @category VuFind2
+ * @category VuFind
  * @package  View_Helpers
  * @author   Demian Katz <demian.katz@villanova.edu>
  * @license  http://opensource.org/licenses/gpl-2.0.php GNU General Public License
- * @link     http://vufind.org/wiki/vufind2:developer_manual Wiki
+ * @link     https://vufind.org/wiki/development Wiki
  */
 namespace VuFind\View\Helper\Root;
 use Zend\View\Exception\RuntimeException;
@@ -31,22 +31,14 @@ use Zend\View\Exception\RuntimeException;
 /**
  * Authentication view helper
  *
- * @category VuFind2
+ * @category VuFind
  * @package  View_Helpers
  * @author   Demian Katz <demian.katz@villanova.edu>
  * @license  http://opensource.org/licenses/gpl-2.0.php GNU General Public License
- * @link     http://vufind.org/wiki/vufind2:developer_manual Wiki
+ * @link     https://vufind.org/wiki/development Wiki
  */
 class Auth extends \Zend\View\Helper\AbstractHelper
 {
-    /**
-     * Active auth class (used for auth methods that allow more than one type
-     * of authentication)
-     *
-     * @var string
-     */
-    protected $activeAuthClass;
-
     /**
      * Authentication manager
      *
@@ -62,7 +54,6 @@ class Auth extends \Zend\View\Helper\AbstractHelper
     public function __construct(\VuFind\Auth\Manager $manager)
     {
         $this->manager = $manager;
-        $this->activeAuthClass = null;
     }
 
     /**
@@ -73,26 +64,29 @@ class Auth extends \Zend\View\Helper\AbstractHelper
      *
      * @return string
      */
-    protected function renderTemplate($name, $context = array())
+    protected function renderTemplate($name, $context = [])
     {
+        // Get the current auth module's class name
+        $className = $this->getManager()->getAuthClassForTemplateRendering();
+
         // Set up the needed context in the view:
         $contextHelper = $this->getView()->plugin('context');
+        $context['topClass'] = $this->getBriefClass($className);
         $oldContext = $contextHelper($this->getView())->apply($context);
 
-        // Get the current auth module's class name, then start a loop
-        // in case we need to use a parent class' name to find the appropriate
-        // template.
-        $className = $this->getActiveAuthClass();
+        // Start a loop in case we need to use a parent class' name to find the
+        // appropriate template.
         $topClassName = $className; // for error message
+        $resolver = $this->getView()->resolver();
         while (true) {
             // Guess the template name for the current class:
             $template = 'Auth/' . $this->getBriefClass($className) . '/' . $name;
-            try {
+            if ($resolver->resolve($template)) {
                 // Try to render the template....
                 $html = $this->getView()->render($template);
                 $contextHelper($this->getView())->restore($oldContext);
                 return $html;
-            } catch (RuntimeException $e) {
+            } else {
                 // If the template doesn't exist, let's see if we can inherit a
                 // template from a parent class:
                 $className = get_parent_class($className);
@@ -128,6 +122,28 @@ class Auth extends \Zend\View\Helper\AbstractHelper
         return $this->getManager()->isLoggedIn();
     }
 
+     /**
+     * Checks whether the user is enabled to administration module.
+     *
+     * @return \VuFind\Db\Row\User|bool Object if user is logged in, false
+     * otherwise.
+     */
+    public function isAdminAuthorized()
+    {
+        return $this->getManager()->isAdminAuthorized();
+    }
+
+     /**
+     * Checks whether the user is enabled to administration module.
+     *
+     * @return \VuFind\Db\Row\User|bool Object if user is logged in, false
+     * otherwise.
+     */
+    public function isSuperAdminAuthorized()
+    {
+        return $this->getManager()->isSuperAdminAuthorized();
+    }
+
     /**
      * Render the create account form fields.
      *
@@ -135,7 +151,7 @@ class Auth extends \Zend\View\Helper\AbstractHelper
      *
      * @return string
      */
-    public function getCreateFields($context = array())
+    public function getCreateFields($context = [])
     {
         return $this->renderTemplate('create.phtml', $context);
     }
@@ -147,7 +163,7 @@ class Auth extends \Zend\View\Helper\AbstractHelper
      *
      * @return string
      */
-    public function getLoginFields($context = array())
+    public function getLoginFields($context = [])
     {
         return $this->renderTemplate('loginfields.phtml', $context);
     }
@@ -159,7 +175,7 @@ class Auth extends \Zend\View\Helper\AbstractHelper
      *
      * @return string
      */
-    public function getLogin($context = array())
+    public function getLogin($context = [])
     {
         return $this->renderTemplate('login.phtml', $context);
     }
@@ -171,48 +187,9 @@ class Auth extends \Zend\View\Helper\AbstractHelper
      *
      * @return string
      */
-    public function getLoginDesc($context = array())
+    public function getLoginDesc($context = [])
     {
         return $this->renderTemplate('logindesc.phtml', $context);
-    }
-
-    /**
-     * Setter
-     *
-     * @param string $classname Class to use in rendering
-     *
-     * @return void
-     */
-    public function setActiveAuthClass($classname)
-    {
-        $this->activeAuthClass = $classname;
-        $this->getManager()->setActiveAuthClass($this->getBriefClass($classname));
-    }
-
-    /**
-     * Accessor for the full class name
-     *
-     * @return string
-     */
-    protected function getActiveAuthClass()
-    {
-        if ($this->activeAuthClass == null) {
-            return $this->getManager()->getAuthClass();
-        }
-        return $this->activeAuthClass;
-    }
-
-    /**
-     * Accessor for just the last part of the class name
-     *
-     * @return string
-     */
-    public function getActiveAuthMethod()
-    {
-        if ($this->activeAuthClass == null) {
-            return $this->getManager()->getAuthClass();
-        }
-        return $this->getBriefClass($this->activeAuthClass);
     }
 
     /**
@@ -235,7 +212,7 @@ class Auth extends \Zend\View\Helper\AbstractHelper
      *
      * @return string
      */
-    public function getNewPasswordForm($context = array())
+    public function getNewPasswordForm($context = [])
     {
         return $this->renderTemplate('newpassword.phtml', $context);
     }
@@ -247,7 +224,7 @@ class Auth extends \Zend\View\Helper\AbstractHelper
      *
      * @return string
      */
-    public function getPasswordRecoveryForm($context = array())
+    public function getPasswordRecoveryForm($context = [])
     {
         return $this->renderTemplate('recovery.phtml', $context);
     }

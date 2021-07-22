@@ -21,50 +21,17 @@ public Set getFormat(Record record){
     char leaderBit;
     ControlField fixedField = (ControlField) record.getVariableField("008");
     DataField title = (DataField) record.getVariableField("245");
-    DataField callnumber = (DataField) record.getVariableField("082");
     String formatString;
     char formatCode = ' ';
     char formatCode2 = ' ';
-
-    // CUSTOM CODE FOR SOAS LIBRARY
-    // @author  Simon Barron <sb174@soas.ac.uk>
-    // check the classmark for MDVD
-    if (callnumber != null) {
-        if (callnumber.getSubfield('a') != null){
-            if (callnumber.getSubfield('a').getData().toLowerCase().contains("mdvd")) {
-                result.add("VideoDisc");
-                return result;
-            }
-        }
-    }
-    // END
+    char formatCode4 = ' ';
 
     // check if there's an h in the 245
     if (title != null) {
         if (title.getSubfield('h') != null){
             if (title.getSubfield('h').getData().toLowerCase().contains("[electronic resource]")) {
-                // CUSTOM CODE FOR SOAS LIBRARY
-                // @author Simon Barron <sb174@soas.ac.uk>
-                // check Format Code in 008 field to determine type of e-resource
-                formatCode = fixedField.getData().toUpperCase().charAt(21);
-                switch (formatCode) {
-                case 'P':
-                    result.add("eJournal");
-                    break;
-                case 'D':
-                    result.add("Database");
-                    break;
-                case 'W':
-                    result.add("Website");
-                    break;
-                default:
-                    result.add("eBook");
-                    break;
-                }
-                if (!result.isEmpty()) {
-                // END
+                result.add("Electronic");
                 return result;
-                }
             }
         }
     }
@@ -79,6 +46,7 @@ public Set getFormat(Record record){
             formatString = formatField.getData().toUpperCase();
             formatCode = formatString.length() > 0 ? formatString.charAt(0) : ' ';
             formatCode2 = formatString.length() > 1 ? formatString.charAt(1) : ' ';
+            formatCode4 = formatString.length() > 4 ? formatString.charAt(4) : ' ';
             switch (formatCode) {
                 case 'A':
                     switch(formatCode2) {
@@ -221,7 +189,15 @@ public Set getFormat(Record record){
                             result.add("VideoCartridge");
                             break;
                         case 'D':
-                            result.add("VideoDisc");
+                            switch(formatCode4) {
+                                case 'S':
+                                    result.add("BRDisc");
+                                    break;
+                                case 'V':
+                                default:
+                                    result.add("VideoDisc");
+                                    break;
+                            }
                             break;
                         case 'F':
                             result.add("VideoCassette");
@@ -292,6 +268,13 @@ public Set getFormat(Record record){
             } else {
                 result.add("Book");
             }
+            break;
+        // Component parts
+        case 'A':
+            result.add("BookComponentPart");
+            break;
+        case 'B':
+            result.add("SerialComponentPart");
             break;
         // Serial
         case 'S':

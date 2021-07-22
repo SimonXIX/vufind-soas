@@ -17,43 +17,58 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  *
- * @category VuFind2
+ * @category VuFind
  * @package  View_Helpers
  * @author   Demian Katz <demian.katz@villanova.edu>
  * @license  http://opensource.org/licenses/gpl-2.0.php GNU General Public License
- * @link     http://vufind.org/wiki/vufind2:developer_manual Wiki
+ * @link     https://vufind.org/wiki/development Wiki
  */
 namespace VuFindTheme\View\Helper;
+use VuFindTheme\ThemeInfo;
 
 /**
  * Head script view helper (extended for VuFind's theme system)
  *
- * @category VuFind2
+ * @category VuFind
  * @package  View_Helpers
  * @author   Demian Katz <demian.katz@villanova.edu>
  * @license  http://opensource.org/licenses/gpl-2.0.php GNU General Public License
- * @link     http://vufind.org/wiki/vufind2:developer_manual Wiki
+ * @link     https://vufind.org/wiki/development Wiki
  */
 class HeadScript extends \Zend\View\Helper\HeadScript
 {
+    use ConcatTrait;
+
     /**
      * Theme information service
      *
-     * @var \VuFindTheme\ThemeInfo
+     * @var ThemeInfo
      */
     protected $themeInfo;
 
     /**
      * Constructor
      *
-     * @param \VuFindTheme\ThemeInfo $themeInfo Theme information service
+     * @param ThemeInfo   $themeInfo Theme information service
+     * @param string|bool $plconfig  Config for current application environment
      */
-    public function __construct(\VuFindTheme\ThemeInfo $themeInfo)
+    public function __construct(ThemeInfo $themeInfo, $plconfig = false)
     {
         parent::__construct();
         $this->themeInfo = $themeInfo;
+        $this->usePipeline = $this->enabledInConfig($plconfig);
+    }
+
+    /**
+     * Folder name and file extension for trait
+     *
+     * @return string
+     */
+    protected function getFileType()
+    {
+        return 'js';
     }
 
     /**
@@ -71,15 +86,72 @@ class HeadScript extends \Zend\View\Helper\HeadScript
         // Normalize href to account for themes:
         if (!empty($item->attributes['src'])) {
             $relPath = 'js/' . $item->attributes['src'];
-            $currentTheme = $this->themeInfo->findContainingTheme($relPath);
+            $details = $this->themeInfo
+                ->findContainingTheme($relPath, ThemeInfo::RETURN_ALL_DETAILS);
 
-            if (!empty($currentTheme)) {
+            if (!empty($details)) {
                 $urlHelper = $this->getView()->plugin('url');
-                $item->attributes['src']
-                    = $urlHelper('home') . "themes/$currentTheme/" . $relPath;
+                $url = $urlHelper('home') . "themes/{$details['theme']}/" . $relPath;
+                $url .= strstr($url, '?') ? '&_=' : '?_=';
+                $url .= filemtime($details['path']);
+                $item->attributes['src'] = $url;
             }
         }
 
         return parent::itemToString($item, $indent, $escapeStart, $escapeEnd);
+    }
+
+    /**
+     * Returns true if file should not be included in the compressed concat file
+     * Required by ConcatTrait
+     *
+     * @param stdClass $item Script element object
+     *
+     * @return bool
+     */
+    protected function isExcludedFromConcat($item)
+    {
+        return empty($item->attributes['src'])
+            || isset($item->attributes['conditional'])
+            || strpos($item->attributes['src'], '://');
+    }
+
+    /**
+     * Get the file path from the script object
+     * Required by ConcatTrait
+     *
+     * @param stdClass $item Script element object
+     *
+     * @return string
+     */
+    protected function getResourceFilePath($item)
+    {
+        return $item->attributes['src'];
+    }
+
+    /**
+     * Set the file path of the script object
+     * Required by ConcatTrait
+     *
+     * @param stdClass $item Script element object
+     * @param string   $path New path string
+     *
+     * @return stdClass
+     */
+    protected function setResourceFilePath($item, $path)
+    {
+        $item->attributes['src'] = $path;
+        return $item;
+    }
+
+    /**
+     * Get the minifier that can handle these file types
+     * Required by ConcatTrait
+     *
+     * @return \MatthiasMullie\Minify\JS
+     */
+    protected function getMinifier()
+    {
+        return new \MatthiasMullie\Minify\JS();
     }
 }

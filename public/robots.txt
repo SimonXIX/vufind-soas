@@ -1,0 +1,15 @@
+User-agent: YandexBot
+Disallow: /
+User-agent: *
+Sitemap: https://library.soas.ac.uk/sitemap/sitemapIndex.xml
+Disallow: /Admin/
+Disallow: /AJAX
+Disallow: /Alphabrowse
+Disallow: /Author
+Disallow: /bookcover.php
+Disallow: /Browse
+Disallow: /cgi-bin/
+Disallow: /Combined
+Disallow: /Search/Results
+Disallow: /Summon
+Disallow: /SummonRecord

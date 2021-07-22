@@ -17,43 +17,58 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  *
- * @category VuFind2
+ * @category VuFind
  * @package  View_Helpers
  * @author   Demian Katz <demian.katz@villanova.edu>
  * @license  http://opensource.org/licenses/gpl-2.0.php GNU General Public License
- * @link     http://vufind.org/wiki/vufind2:developer_manual Wiki
+ * @link     https://vufind.org/wiki/development Wiki
  */
 namespace VuFindTheme\View\Helper;
+use VuFindTheme\ThemeInfo;
 
 /**
  * Head link view helper (extended for VuFind's theme system)
  *
- * @category VuFind2
+ * @category VuFind
  * @package  View_Helpers
  * @author   Demian Katz <demian.katz@villanova.edu>
  * @license  http://opensource.org/licenses/gpl-2.0.php GNU General Public License
- * @link     http://vufind.org/wiki/vufind2:developer_manual Wiki
+ * @link     https://vufind.org/wiki/development Wiki
  */
 class HeadLink extends \Zend\View\Helper\HeadLink
 {
+    use ConcatTrait;
+
     /**
      * Theme information service
      *
-     * @var \VuFindTheme\ThemeInfo
+     * @var ThemeInfo
      */
     protected $themeInfo;
 
     /**
      * Constructor
      *
-     * @param \VuFindTheme\ThemeInfo $themeInfo Theme information service
+     * @param ThemeInfo   $themeInfo Theme information service
+     * @param string|bool $plconfig  Config for current application environment
      */
-    public function __construct(\VuFindTheme\ThemeInfo $themeInfo)
+    public function __construct(ThemeInfo $themeInfo, $plconfig = false)
     {
         parent::__construct();
         $this->themeInfo = $themeInfo;
+        $this->usePipeline = $this->enabledInConfig($plconfig);
+    }
+
+    /**
+     * Folder name and file extension for trait
+     *
+     * @return string
+     */
+    protected function getFileType()
+    {
+        return 'css';
     }
 
     /**
@@ -67,11 +82,15 @@ class HeadLink extends \Zend\View\Helper\HeadLink
     {
         // Normalize href to account for themes, then call the parent class:
         $relPath = 'css/' . $item->href;
-        $currentTheme = $this->themeInfo->findContainingTheme($relPath);
+        $details = $this->themeInfo
+            ->findContainingTheme($relPath, ThemeInfo::RETURN_ALL_DETAILS);
 
-        if (!empty($currentTheme)) {
+        if (!empty($details)) {
             $urlHelper = $this->getView()->plugin('url');
-            $item->href = $urlHelper('home') . "themes/$currentTheme/" . $relPath;
+            $url = $urlHelper('home') . "themes/{$details['theme']}/" . $relPath;
+            $url .= strstr($url, '?') ? '&_=' : '?_=';
+            $url .= filemtime($details['path']);
+            $item->href = $url;
         }
 
         return parent::itemToString($item);
@@ -80,46 +99,110 @@ class HeadLink extends \Zend\View\Helper\HeadLink
     /**
      * Compile a less file to css and add to css folder
      *
-     * @param string $file path to less file
+     * @param string $file Path to less file
      *
-     * @return void
+     * @return string
      */
     public function addLessStylesheet($file)
     {
         $relPath = 'less/' . $file;
         $urlHelper = $this->getView()->plugin('url');
         $currentTheme = $this->themeInfo->findContainingTheme($relPath);
-        $home = APPLICATION_PATH . "/themes/$currentTheme/";
-        $cssDirectory = $urlHelper('home') . "themes/$currentTheme/css/less/";
+        $helperHome = $urlHelper('home');
+        $home = APPLICATION_PATH . '/themes/' . $currentTheme . '/';
+        $cssDirectory = $helperHome . 'themes/' . $currentTheme . '/css/less/';
 
         try {
-            $less_files = array(
+            $less_files = [
                 APPLICATION_PATH . '/themes/' . $currentTheme . '/' . $relPath
                     => $cssDirectory
-            );
+            ];
             $themeParents = array_keys($this->themeInfo->getThemeInfo());
-            $directories = array();
+            $directories = [];
             foreach ($themeParents as $theme) {
                 $directories[APPLICATION_PATH . '/themes/' . $theme . '/less/']
-                    = $cssDirectory;
+                    = $helperHome . 'themes/' . $theme . '/css/less/';
             }
             $css_file_name = \Less_Cache::Get(
                 $less_files,
-                array(
+                [
                     'cache_dir' => $home . 'css/less/',
                     'cache_method' => false,
                     'compress' => true,
                     'import_dirs' => $directories,
                     'output' => str_replace('.less', '.css', $file)
-                )
+                ]
             );
-            $this->prependStylesheet($cssDirectory . $css_file_name);
+            return $cssDirectory . $css_file_name;
         } catch (\Exception $e) {
             error_log($e->getMessage());
             list($fileName, ) = explode('.', $file);
-            $this->prependStylesheet(
-                $urlHelper('home') . "themes/{$currentTheme}/css/{$fileName}.css"
-            );
+            return $urlHelper('home') . "themes/{$currentTheme}/css/{$fileName}.css";
         }
+    }
+
+    /**
+     * Returns true if file should not be included in the compressed concat file
+     * Required by ConcatTrait
+     *
+     * @param stdClass $item Link element object
+     *
+     * @return bool
+     */
+    protected function isExcludedFromConcat($item)
+    {
+        return !isset($item->rel) || $item->rel != 'stylesheet'
+            || strpos($item->href, '://');
+    }
+
+    /**
+     * Get the file path from the link object
+     * Required by ConcatTrait
+     *
+     * @param stdClass $item Link element object
+     *
+     * @return string
+     */
+    protected function getResourceFilePath($item)
+    {
+        return $item->href;
+    }
+
+    /**
+     * Set the file path of the link object
+     * Required by ConcatTrait
+     *
+     * @param stdClass $item Link element object
+     * @param string   $path New path string
+     *
+     * @return stdClass
+     */
+    protected function setResourceFilePath($item, $path)
+    {
+        $item->href = $path;
+        return $item;
+    }
+
+    /**
+     * Get the file type
+     *
+     * @param stdClass $item Link element object
+     *
+     * @return string
+     */
+    public function getType($item)
+    {
+        return isset($item->media) ? $item->media : 'all';
+    }
+
+    /**
+     * Get the minifier that can handle these file types
+     * Required by ConcatTrait
+     *
+     * @return \MatthiasMullie\Minify\JS
+     */
+    protected function getMinifier()
+    {
+        return new \MatthiasMullie\Minify\CSS();
     }
 }

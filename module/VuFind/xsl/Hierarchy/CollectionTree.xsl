@@ -12,8 +12,16 @@
         <xsl:variable name="id" select="@id" />
         <item>
           <content>
+              <xsl:variable name="level" select="@level" />
+              <xsl:variable name="type">
+       		<xsl:choose>
+           		<xsl:when test="$level = 'File' or $level = 'Item'">Record</xsl:when>
+           		<xsl:otherwise>Collection</xsl:otherwise>
+         	</xsl:choose>
+	      </xsl:variable>
+
               <name class="JSTreeID"><xsl:value-of select="$id"/></name>
-              <name href="{$baseURL}/Collection/{$collectionID}/HierarchyTree?recordID={$id}#tabnav" title="{$titleText}">
+              <name href="{$baseURL}/{$type}/{$id}/HierarchyTree?#tabnav{$type}" title="{$titleText}">
                   <xsl:value-of select="./content/name" />
               </name>
           </content>
